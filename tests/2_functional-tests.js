@@ -20,10 +20,9 @@ const client = new MongoClient(URI);
 let last;
 async function getLast(){
   try{
-     client.connect();
+    client.connect();
     const myDataBase =   await client.db('projLibrary-QA-freeCodeCamp').collection('books');
     last =(  await myDataBase.findOne({}, {sort:{$natural:-1}}));
-    //console.log(last)
   }catch(e) {
     console.error(e);
     throw new Error('Unable to Connect to Database')
@@ -129,7 +128,6 @@ suite('Functional Tests', function() {
       test('Test GET /api/books/[id] with valid id in db',  function(done){
         getLast()
        let getRoute=('/api/books/')+(String(last['_id']))
-       //console.log(getRoute)
         chai
         .request(server)
         .keepOpen()
@@ -152,7 +150,6 @@ suite('Functional Tests', function() {
       test('Test POST /api/books/[id] with comment', function(done){
         getLast();
         let getRoute=('/api/books/')+(String(last['_id']))
-       //console.log(getRoute)
         chai
         .request(server)
         .keepOpen()
