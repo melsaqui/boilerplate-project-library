@@ -12,6 +12,26 @@ const assert = chai.assert;
 const server = require('../server');
 
 chai.use(chaiHttp);
+require('dotenv').config();
+const { ObjectId,MongoClient } = require('mongodb');
+const BSON = require('bson');
+const URI = process.env.MONGO_URI; // Declare MONGO_URI in your .env file
+const client = new MongoClient(URI);
+var last;
+async function getLast(){
+  try{
+    client.connect();
+    const myDataBase = await client.db('projLibrary-QA-freeCodeCamp').collection('books');
+    last =(await myDataBase.findOne({}, {sort:{$natural:-1}}));
+   // console.log(last)
+  }catch(e) {
+    console.error(e);
+    throw new Error('Unable to Connect to Database')
+  
+  }
+}
+getLast();
+
 
 suite('Functional Tests', function() {
 
@@ -41,33 +61,86 @@ suite('Functional Tests', function() {
     suite('POST /api/books with title => create book object/expect book object', function() {
       
       test('Test POST /api/books with title', function(done) {
-        //done();
+        chai
+        .request(server)
+        .keepOpen()
+        .post('/api/books')
+        .send({title:"A title"})
+        .end(function (err, res) {
+          assert.equal(res.status, 200);
+          assert.equal(res.type,'application/json','Response should be json', );
+          assert.equal(res.body.title,'A title')
+        done();
       });
+    });
       
       test('Test POST /api/books with no title given', function(done) {
-        //done();
+        chai
+        .request(server)
+        .keepOpen()
+        .post('/api/books')
+        .send({title:""})
+        .end(function (err, res) {
+          assert.equal(res.status, 200);
+          assert.equal(res.type,'application/json','Response should be json', );
+          assert.equal(res.body,"missing required field title")
+        done();
+        });
       });
       
     });
 
 
     suite('GET /api/books => array of books', function(){
-      
       test('Test GET /api/books',  function(done){
-        //done();
+        chai
+              .request(server)
+              .keepOpen()
+              .get('/api/books')
+              .end(async function (err, res) {
+                assert.equal(res.status, 200);
+                assert.equal(res.type,'application/json','Response should be json', );
+                assert.isArray(res.body)
+                //assert.isNotEmpty(res.body)
+                done();
+              });
+       // done();
       });      
       
     });
 
 
-    suite('GET /api/books/[id] => book object with [id]', function(){
-      
+    suite('GET /api/books/[id] => book object with [id]', function(){  
       test('Test GET /api/books/[id] with id not in db',  function(done){
-        //done();
+        chai
+        .request(server)
+        .keepOpen()
+        .get('/api/books/66e3681df788c4001399aa8d')
+        .end(async function (err, res) {
+          assert.equal(res.status, 200);
+          assert.equal(res.type,'application/json','Response should be json', );
+          assert.equal(res.body,'no book exists')
+          assert.isNotEmpty(res.body)
+          done();
+        });
       });
-      
+
       test('Test GET /api/books/[id] with valid id in db',  function(done){
-        //done();
+        //console.log(last['_id'])
+       const getRoute=('/api/books/')+(String(last['_id']))
+       //console.log(getRoute)
+        chai
+        .request(server)
+        .keepOpen()
+        .get(String(getRoute))
+        .end( async function (err, res) {
+          assert.equal(res.status, 200);
+          assert.equal(res.type,'application/json','Response should be json', );
+          assert.equal(res.body._id,last['_id'])
+          assert.isNotEmpty(res.body)
+          done();
+        });
+
       });
       
     });
@@ -76,15 +149,57 @@ suite('Functional Tests', function() {
     suite('POST /api/books/[id] => add comment/expect book object with id', function(){
       
       test('Test POST /api/books/[id] with comment', function(done){
-        //done();
+        const getRoute=('/api/books/')+(String(last['_id']))
+       //console.log(getRoute)
+        chai
+        .request(server)
+        .keepOpen()
+        .post(String(getRoute))
+        .send({comment:"This is a comment"})
+        .end(async function (err, res) {
+          assert.equal(res.status, 200);
+          assert.equal(res.type,'application/json','Response should be json', );
+          assert.equal(res.body._id,last['_id'])
+          assert.isNumber(res.body.commentcount)
+          assert.isAbove(res.body.commentcount,0)
+          assert.equal(res.body.commentcount,last['commentcount']+1)
+          assert.include(res.body.comments,"This is a comment")
+          assert.isNotEmpty(res.body)
+          done();
+        });
+
       });
+      
 
       test('Test POST /api/books/[id] without comment field', function(done){
-        //done();
+        const getRoute=('/api/books/')+(String(last['_id']))
+        chai
+        .request(server)
+        .keepOpen()
+        .post(String(getRoute))
+        .send({comment:""})
+        .end(function (err, res) {
+          assert.equal(res.status, 200);
+          assert.equal(res.type,'application/json','Response should be json', );
+          assert.isNotEmpty(res.body)
+          assert.equal(res.body,"missing required field comment");
+          done();
+        });
       });
 
       test('Test POST /api/books/[id] with comment, id not in db', function(done){
-        //done();
+        chai
+        .request(server)
+        .keepOpen()
+        .post('/api/books/66e3681df788c4001399aa8d')
+        .send({comment:"A comment"})
+        .end(function (err, res) {
+          assert.equal(res.status, 200);
+          assert.equal(res.type,'application/json','Response should be json', );
+          assert.equal(res.body,'no book exists')
+          assert.isNotEmpty(res.body)
+          done();
+        });
       });
       
     });
@@ -92,11 +207,33 @@ suite('Functional Tests', function() {
     suite('DELETE /api/books/[id] => delete book object id', function() {
 
       test('Test DELETE /api/books/[id] with valid id in db', function(done){
-        //done();
+        const getRoute=('/api/books/')+(String(last['_id']))
+         chai
+         .request(server)
+         .keepOpen()
+         .delete(String(getRoute))
+         .end(function (err, res) {
+           assert.equal(res.status, 200);
+           assert.equal(res.type,'application/json','Response should be json', );
+           assert.isNotEmpty(res.body)
+           assert.equal(res.body,"delete successful");
+           done();
+         });
       });
 
       test('Test DELETE /api/books/[id] with  id not in db', function(done){
-        //done();
+        chai
+        .request(server)
+        .keepOpen()
+        .delete('/api/books/66e3681df788c4001399aa8d')
+        .send({comment:"A comment"})
+        .end(function (err, res) {
+          assert.equal(res.status, 200);
+          assert.equal(res.type,'application/json','Response should be json', );
+          assert.equal(res.body,'no book exists')
+          assert.isNotEmpty(res.body)
+          done();
+        });
       });
 
     });
