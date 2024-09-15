@@ -17,21 +17,20 @@ const { ObjectId,MongoClient } = require('mongodb');
 const BSON = require('bson');
 const URI = process.env.MONGO_URI; // Declare MONGO_URI in your .env file
 const client = new MongoClient(URI);
-var last;
+let last;
 async function getLast(){
   try{
-    client.connect();
-    const myDataBase = await client.db('projLibrary-QA-freeCodeCamp').collection('books');
-    last =(await myDataBase.findOne({}, {sort:{$natural:-1}}));
-   // console.log(last)
+     client.connect();
+    const myDataBase =   await client.db('projLibrary-QA-freeCodeCamp').collection('books');
+    last =(  await myDataBase.findOne({}, {sort:{$natural:-1}}));
+    //console.log(last)
   }catch(e) {
     console.error(e);
     throw new Error('Unable to Connect to Database')
   
   }
 }
-getLast();
-
+getLast()
 
 suite('Functional Tests', function() {
 
@@ -66,12 +65,14 @@ suite('Functional Tests', function() {
         .keepOpen()
         .post('/api/books')
         .send({title:"A title"})
-        .end(function (err, res) {
+        .end(async function (err, res) {
           assert.equal(res.status, 200);
           assert.equal(res.type,'application/json','Response should be json', );
           assert.equal(res.body.title,'A title')
         done();
       });
+      getLast();
+
     });
       
       test('Test POST /api/books with no title given', function(done) {
@@ -80,7 +81,7 @@ suite('Functional Tests', function() {
         .keepOpen()
         .post('/api/books')
         .send({title:""})
-        .end(function (err, res) {
+        .end(async function (err, res) {
           assert.equal(res.status, 200);
           assert.equal(res.type,'application/json','Response should be json', );
           assert.equal(res.body,"missing required field title")
@@ -126,14 +127,14 @@ suite('Functional Tests', function() {
       });
 
       test('Test GET /api/books/[id] with valid id in db',  function(done){
-        //console.log(last['_id'])
-       const getRoute=('/api/books/')+(String(last['_id']))
+        getLast()
+       let getRoute=('/api/books/')+(String(last['_id']))
        //console.log(getRoute)
         chai
         .request(server)
         .keepOpen()
         .get(String(getRoute))
-        .end( async function (err, res) {
+        .end(async function (err, res) {
           assert.equal(res.status, 200);
           assert.equal(res.type,'application/json','Response should be json', );
           assert.equal(res.body._id,last['_id'])
@@ -147,9 +148,10 @@ suite('Functional Tests', function() {
 
 
     suite('POST /api/books/[id] => add comment/expect book object with id', function(){
-      
+
       test('Test POST /api/books/[id] with comment', function(done){
-        const getRoute=('/api/books/')+(String(last['_id']))
+        getLast();
+        let getRoute=('/api/books/')+(String(last['_id']))
        //console.log(getRoute)
         chai
         .request(server)
@@ -178,7 +180,7 @@ suite('Functional Tests', function() {
         .keepOpen()
         .post(String(getRoute))
         .send({comment:""})
-        .end(function (err, res) {
+        .end(async function (err, res) {
           assert.equal(res.status, 200);
           assert.equal(res.type,'application/json','Response should be json', );
           assert.isNotEmpty(res.body)
@@ -193,7 +195,7 @@ suite('Functional Tests', function() {
         .keepOpen()
         .post('/api/books/66e3681df788c4001399aa8d')
         .send({comment:"A comment"})
-        .end(function (err, res) {
+        .end(async function (err, res) {
           assert.equal(res.status, 200);
           assert.equal(res.type,'application/json','Response should be json', );
           assert.equal(res.body,'no book exists')
@@ -207,16 +209,19 @@ suite('Functional Tests', function() {
     suite('DELETE /api/books/[id] => delete book object id', function() {
 
       test('Test DELETE /api/books/[id] with valid id in db', function(done){
-        const getRoute=('/api/books/')+(String(last['_id']))
+        getLast()
+        let getRoute=('/api/books/')+(String(last['_id']))
          chai
          .request(server)
          .keepOpen()
          .delete(String(getRoute))
-         .end(function (err, res) {
+         .end(async function (err, res) {
            assert.equal(res.status, 200);
            assert.equal(res.type,'application/json','Response should be json', );
            assert.isNotEmpty(res.body)
            assert.equal(res.body,"delete successful");
+           getLast()
+           console.log(last)
            done();
          });
       });
@@ -227,11 +232,12 @@ suite('Functional Tests', function() {
         .keepOpen()
         .delete('/api/books/66e3681df788c4001399aa8d')
         .send({comment:"A comment"})
-        .end(function (err, res) {
+        .end(async function (err, res) {
           assert.equal(res.status, 200);
           assert.equal(res.type,'application/json','Response should be json', );
           assert.equal(res.body,'no book exists')
           assert.isNotEmpty(res.body)
+         
           done();
         });
       });
